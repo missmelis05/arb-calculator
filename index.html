@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbitrage Math Table</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  body { font-family: system-ui, sans-serif; padding: 16px; }
+  input, select, button { margin: 4px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+  th, td { border: 1px solid #ccc; padding: 6px; text-align: right; }
+  th { background: #f2f2f2; }
+  .profit { background: #e6ffe6; }
+  .loss { background: #ffe6e6; }
+</style>
+</head>
+<body>
+
+<h2>Arbitrage Math Table (Demo)</h2>
+
+<div>
+  Stake: <input id="stake" type="number" value="10" step="0.01">
+  First Odds (−): <input id="odds1" type="number" value="-105">
+</div>
+
+<div>
+  Start + <input id="start" type="number" value="110">
+  End + <input id="end" type="number" value="400">
+  Step <input id="step" type="number" value="10">
+</div>
+
+<div>
+  Rounding:
+  <select id="rounding">
+    <option value="1">Whole Dollar</option>
+    <option value="0.5" selected>Half Dollar</option>
+  </select>
+</div>
+
+<button onclick="calculate()">Calculate</button>
+<button onclick="exportCSV()">Export CSV</button>
+
+<table>
+  <thead>
+    <tr>
+      <th>Opposing Odds</th>
+      <th>Opposing Stake ($)</th>
+      <th>Total Staked ($)</th>
+      <th>Guaranteed Profit ($)</th>
+      <th>Arb %</th>
+    </tr>
+  </thead>
+  <tbody id="results"></tbody>
+</table>
+
+<script>
+// Register service worker for offline support
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
+// Utility: round to nearest increment
+function roundTo(value, increment) {
+  return Math.round(value / increment) * increment;
+}
+
+// DOM shortcuts
+const stakeInput = document.getElementById("stake");
+const odds1Input = document.getElementById("odds1");
+const startInput = document.getElementById("start");
+const endInput = document.getElementById("end");
+const stepInput = document.getElementById("step");
+const roundingSelect = document.getElementById("rounding");
+const results = document.getElementById("results");
+
+// Main calculation function
+function calculate() {
+  const stake = parseFloat(stakeInput.value);
+  const odds1 = parseFloat(odds1Input.value);
+  const start = parseInt(startInput.value);
+  const end = parseInt(endInput.value);
+  const step = parseInt(stepInput.value);
+  const rounding = parseFloat(roundingSelect.value);
+
+  const decimal1 = odds1 < 0 ? 1 + 100 / Math.abs(odds1) : 1 + odds1 / 100;
+  const payout = stake * decimal1;
+
+  results.innerHTML = "";
+
+  let maxProfit = -Infinity;
+  const rowsData = [];
+
+  // Precompute rows and track max profit
+  for (let o = start; o <= end; o += step) {
+    const decimal2 = 1 + o / 100;
+    const rawStake2 = payout / decimal2;
+    const stake2 = roundTo(rawStake2, rounding);
+
+    const total = stake + stake2;
+    const profit = payout - total;
+
+    const arbPercent = (1 / decimal1 + 1 / decimal2) * 100;
+
+    rowsData.push({
+      odds: o,
+      stake2,
+      total,
+      profit,
+      arbPercent
+    });
+
+    if (profit > maxProfit) maxProfit = profit;
+  }
+
+  // Render table and highlight max profit row
+  rowsData.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.className = row.profit > 0 ? "profit" : "loss";
+
+    if (row.profit === maxProfit) tr.style.border = "2px solid gold";
+
+    tr.innerHTML = `
+      <td>+${row.odds}</td>
+      <td>${row.stake2.toFixed(2)}</td>
+      <td>${row.total.toFixed(2)}</td>
+      <td>${row.profit.toFixed(2)}</td>
+      <td style="color:${row.arbPercent < 100 ? 'green':'red'}">${row.arbPercent.toFixed(2)}%</td>
+    `;
+    results.appendChild(tr);
+  });
+}
+
+// CSV export
+function exportCSV() {
+  let csv = "Opposing Odds,Opposing Stake,Total Staked,Guaranteed Profit,Arb %\n";
+  document.querySelectorAll("#results tr").forEach(row => {
+    csv += [...row.children].map(td => td.textContent).join(",") + "\n";
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "arbitrage_table.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
