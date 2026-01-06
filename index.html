@@ -6,37 +6,99 @@
 <title>Arbitrage Math Table</title>
 <link rel="manifest" href="manifest.json">
 <style>
-  body { font-family: system-ui, sans-serif; padding: 16px; }
-  input, select, button { margin: 4px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-  th, td { border: 1px solid #ccc; padding: 6px; text-align: right; }
+  body { 
+    font-family: system-ui, sans-serif; 
+    padding: 16px; 
+    max-width: 480px; 
+    margin: auto; 
+  }
+  label { display: block; margin-top: 12px; font-weight: bold; }
+  input, select, button { 
+    margin: 6px 0; 
+    width: 100%; 
+    padding: 6px; 
+    box-sizing: border-box; 
+  }
+  button { cursor: pointer; }
+
+  /* Desktop table style */
+  table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    margin-top: 16px; 
+  }
+  th, td { 
+    border: 1px solid #ccc; 
+    padding: 6px; 
+    text-align: right; 
+  }
   th { background: #f2f2f2; }
   .profit { background: #e6ffe6; }
   .loss { background: #ffe6e6; }
+
+  /* Mobile card style for small screens */
+  @media (max-width: 480px) {
+    table, thead, tbody, th, td, tr {
+      display: block;
+      width: 100%;
+    }
+    thead tr { display: none; }
+    tr {
+      margin-bottom: 12px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    td {
+      border: none;
+      text-align: left;
+      padding: 4px 0;
+    }
+    td::before {
+      content: attr(data-label);
+      font-weight: bold;
+      display: inline-block;
+      width: 140px;
+    }
+  }
 </style>
 </head>
 <body>
 
-<h2>Arbitrage Math Table (Demo)</h2>
+<h2>Arbitrage Math Table</h2>
 
-<div>
-  Stake: <input id="stake" type="number" value="10" step="0.01">
-  First Odds (−): <input id="odds1" type="number" value="-105">
-</div>
+<label>
+  Stake:
+  <input id="stake" type="number" value="10" step="0.01">
+</label>
 
-<div>
-  Start + <input id="start" type="number" value="110">
-  End + <input id="end" type="number" value="400">
-  Step <input id="step" type="number" value="10">
-</div>
+<label>
+  First Odds (−):
+  <input id="odds1" type="number" value="-105">
+</label>
 
-<div>
+<label>
+  Start +:
+  <input id="start" type="number" value="110">
+</label>
+
+<label>
+  End +:
+  <input id="end" type="number" value="400">
+</label>
+
+<label>
+  Step (increase opposing odds by 5, 10, etc.):
+  <input id="step" type="number" value="10">
+</label>
+
+<label>
   Rounding:
   <select id="rounding">
-    <option value="1">Whole Dollar</option>
-    <option value="0.5" selected>Half Dollar</option>
+    <option value="1">Whole Dollar (e.g. 7.00)</option>
+    <option value="0.5" selected>Half Dollar (e.g. 7.50)</option>
   </select>
-</div>
+</label>
 
 <button onclick="calculate()">Calculate</button>
 <button onclick="exportCSV()">Export CSV</button>
@@ -48,7 +110,6 @@
       <th>Opposing Stake ($)</th>
       <th>Total Staked ($)</th>
       <th>Guaranteed Profit ($)</th>
-      <th>Arb %</th>
     </tr>
   </thead>
   <tbody id="results"></tbody>
@@ -91,7 +152,6 @@ function calculate() {
   let maxProfit = -Infinity;
   const rowsData = [];
 
-  // Precompute rows and track max profit
   for (let o = start; o <= end; o += step) {
     const decimal2 = 1 + o / 100;
     const rawStake2 = payout / decimal2;
@@ -100,20 +160,17 @@ function calculate() {
     const total = stake + stake2;
     const profit = payout - total;
 
-    const arbPercent = (1 / decimal1 + 1 / decimal2) * 100;
-
     rowsData.push({
       odds: o,
       stake2,
       total,
-      profit,
-      arbPercent
+      profit
     });
 
     if (profit > maxProfit) maxProfit = profit;
   }
 
-  // Render table and highlight max profit row
+  // Render table with responsive labels
   rowsData.forEach(row => {
     const tr = document.createElement("tr");
     tr.className = row.profit > 0 ? "profit" : "loss";
@@ -121,11 +178,10 @@ function calculate() {
     if (row.profit === maxProfit) tr.style.border = "2px solid gold";
 
     tr.innerHTML = `
-      <td>+${row.odds}</td>
-      <td>${row.stake2.toFixed(2)}</td>
-      <td>${row.total.toFixed(2)}</td>
-      <td>${row.profit.toFixed(2)}</td>
-      <td style="color:${row.arbPercent < 100 ? 'green':'red'}">${row.arbPercent.toFixed(2)}%</td>
+      <td data-label="Opposing Odds">+${row.odds}</td>
+      <td data-label="Opposing Stake ($)">${row.stake2.toFixed(2)}</td>
+      <td data-label="Total Staked ($)">${row.total.toFixed(2)}</td>
+      <td data-label="Guaranteed Profit ($)">${row.profit.toFixed(2)}</td>
     `;
     results.appendChild(tr);
   });
@@ -133,7 +189,7 @@ function calculate() {
 
 // CSV export
 function exportCSV() {
-  let csv = "Opposing Odds,Opposing Stake,Total Staked,Guaranteed Profit,Arb %\n";
+  let csv = "Opposing Odds,Opposing Stake,Total Staked,Guaranteed Profit\n";
   document.querySelectorAll("#results tr").forEach(row => {
     csv += [...row.children].map(td => td.textContent).join(",") + "\n";
   });
