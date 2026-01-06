@@ -21,44 +21,43 @@
   }
   button { cursor: pointer; }
 
-  /* Desktop table style */
+  .table-container {
+    max-width: 100%;
+    margin-top: 16px;
+  }
+
   table { 
     border-collapse: collapse; 
     width: 100%; 
-    margin-top: 16px; 
+    table-layout: fixed; /* fix column widths */
   }
   th, td { 
     border: 1px solid #ccc; 
     padding: 6px; 
     text-align: right; 
+    word-wrap: break-word;
+    overflow: hidden;
   }
-  th { background: #f2f2f2; }
-  .profit { background: #e6ffe6; }
-  .loss { background: #ffe6e6; }
+  th { 
+    background: #f2f2f2;
+    position: sticky; /* sticky header */
+    top: 0;
+    z-index: 2;
+  }
 
-  /* Mobile card style for small screens */
+  /* Optimized column widths */
+  th:nth-child(1), td:nth-child(1) { width: 20%; } /* Odds */
+  th:nth-child(2), td:nth-child(2) { width: 25%; } /* Opposing Stake */
+  th:nth-child(3), td:nth-child(3) { width: 25%; } /* Total Staked */
+  th:nth-child(4), td:nth-child(4) { width: 30%; } /* Profit */
+
+  .profit-negative { background: #ffe6e6; } /* red for negative profit */
+
+  /* Responsive: adjust font & padding on small screens */
   @media (max-width: 480px) {
-    table, thead, tbody, th, td, tr {
-      display: block;
-      width: 100%;
-    }
-    thead tr { display: none; }
-    tr {
-      margin-bottom: 12px;
-      border: 2px solid #ccc;
-      border-radius: 8px;
-      padding: 8px;
-    }
-    td {
-      border: none;
-      text-align: left;
-      padding: 4px 0;
-    }
-    td::before {
-      content: attr(data-label);
-      font-weight: bold;
-      display: inline-block;
-      width: 140px;
+    th, td {
+      font-size: 14px;
+      padding: 4px;
     }
   }
 </style>
@@ -103,17 +102,19 @@
 <button onclick="calculate()">Calculate</button>
 <button onclick="exportCSV()">Export CSV</button>
 
-<table>
-  <thead>
-    <tr>
-      <th>Opposing Odds</th>
-      <th>Opposing Stake ($)</th>
-      <th>Total Staked ($)</th>
-      <th>Guaranteed Profit ($)</th>
-    </tr>
-  </thead>
-  <tbody id="results"></tbody>
-</table>
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Opposing Odds</th>
+        <th>Opposing Stake ($)</th>
+        <th>Total Staked ($)</th>
+        <th>Guaranteed Profit ($)</th>
+      </tr>
+    </thead>
+    <tbody id="results"></tbody>
+  </table>
+</div>
 
 <script>
 // Register service worker for offline support
@@ -170,18 +171,24 @@ function calculate() {
     if (profit > maxProfit) maxProfit = profit;
   }
 
-  // Render table with responsive labels
+  // Render table with gradient coloring
   rowsData.forEach(row => {
     const tr = document.createElement("tr");
-    tr.className = row.profit > 0 ? "profit" : "loss";
 
-    if (row.profit === maxProfit) tr.style.border = "2px solid gold";
+    // Profit column color
+    const profitCell = row.profit >= 0
+      ? Math.floor((row.profit / maxProfit) * 255) // scale green
+      : 0; // negative profit
+
+    const color = row.profit >= 0
+      ? `rgb(${255 - profitCell}, 255, ${255 - profitCell})` // light to dark green
+      : '#ffe6e6'; // red for negative
 
     tr.innerHTML = `
-      <td data-label="Opposing Odds">+${row.odds}</td>
-      <td data-label="Opposing Stake ($)">${row.stake2.toFixed(2)}</td>
-      <td data-label="Total Staked ($)">${row.total.toFixed(2)}</td>
-      <td data-label="Guaranteed Profit ($)">${row.profit.toFixed(2)}</td>
+      <td>+${row.odds}</td>
+      <td>${row.stake2.toFixed(2)}</td>
+      <td>${row.total.toFixed(2)}</td>
+      <td style="background:${color}">${row.profit.toFixed(2)}</td>
     `;
     results.appendChild(tr);
   });
@@ -206,3 +213,4 @@ function exportCSV() {
 
 </body>
 </html>
+
